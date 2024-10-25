@@ -1,0 +1,8 @@
+bledy wpasowania na control i check
+zamiescic dokladnosci po xyz wynik aerotriangulacji
+pokazanie 3 chmur punktow lowest low medium
+analiza gestosci
+porownanie
+show info z RMS
+krootki komentarz i wnioski
+
