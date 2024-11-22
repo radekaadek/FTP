@@ -1,13 +1,9 @@
 import Metashape
 
-def my_fun():
-    print("Hello World")
 
 doc = Metashape.Document()
 chunk = doc.chunk
 app = Metashape.Application()
-app.removeMenuItem("mojprzycisk")
-app.addMenuItem("mojprzycisk", my_fun)
 
 # chunk.matchPhotos(1, generic_preselection=True, reference_preselection=False())
 # chunk.alignCameras()
@@ -32,4 +28,36 @@ def DefineBundleAdjustmentParameters(MarkerLocationAccuracy = Metashape.Vector([
     chunk.camera_rotation_accuracy = CameraRotationAccuracy
     chunk.camera_location_accuracy = CameraLocationAccuracy
     # chunk.save()
+
+def ExportMarkers():
+    File = Metashape.Application.getSaveFileName('Export traces', filter="*.txt")
+    if len(File) == 0:
+        return
+    File = open(File, 'w')
+    for marker in chunk.markers:
+        if marker.type == Metashape.Marker.Type.Regular:
+            for camera in chunk.cameras:
+                if camera.enabled == 1:
+                    Point2D = marker.projections[camera]
+                    ReprojectionError = []
+                    if Point2D is not None:
+                        ReprojectionError = camera.project(marker.position)-marker.projections[camera].coord
+                        if ReprojectionError is not None:
+                            File.write(marker.label)
+                            File.write(' ')
+                            File.write(camera.label)
+                            File.write(' ')
+                            File.write(ReprojectionError[0])
+                            File.write(ReprojectionError[1])
+                            File.write(marker.projections[camera].coord[0])
+                            File.write(marker.projections[camera].coord[1])
+                            File.write('\n')
+    File.close()
+
+
+app.removeMenuItem("mojprzycisk")
+app.addMenuItem("mojprzycisk", DefineBundleAdjustmentParameters)
+
+app.removeMenuItem("ExportMarkers")
+app.addMenuItem("ExportMarkers", DefineBundleAdjustmentParameters)
 
