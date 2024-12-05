@@ -55,9 +55,10 @@ def ExportMarkers():
     File.close()
 
 
+app.addMenuItem("mojprzycisk")
+
 app.removeMenuItem("mojprzycisk")
 app.addMenuItem("mojprzycisk", DefineBundleAdjustmentParameters)
 
 app.removeMenuItem("ExportMarkers")
 app.addMenuItem("ExportMarkers", DefineBundleAdjustmentParameters)
-
