@@ -37,11 +37,18 @@ def get_photos():
     photo_folder = app.getExistingDirectory("Please select the folder of photos to load.")
     if not photo_folder:
         return
-    # ask the user for CRS
     crs = app.getCoordinateSystem()
-    chunk.crs = crs
+    # ask the user for CRS
     photos = find_files(photo_folder, image_types)
     chunk.addPhotos(photos)
+    for camera in chunk.cameras:
+        camera.reference.location = crs.project(chunk.crs.unproject(camera.reference.location))
+    chunk.crs = crs
+    chunk.updateTransform()
+    chunk.matchPhotos()
+    chunk.alignCameras()
+
+
 
 
 image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
