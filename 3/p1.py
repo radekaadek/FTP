@@ -45,15 +45,19 @@ def get_photos():
         camera.reference.location = crs.project(chunk.crs.unproject(camera.reference.location))
     chunk.crs = crs
     chunk.updateTransform()
-    chunk.matchPhotos()
     chunk.alignCameras()
+    chunk.matchPhotos()
 
+def build_cloud():
+    chunk.buildPointCloud(point_colors=True)
 
 
 
 image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
 
 
-app.removeMenuItem("ExportMarkers")
-app.addMenuItem("ExportMarkers", get_photos)
+app.removeMenuItem("GetPhotosAlign")
+app.addMenuItem("GetPhotosAlign", get_photos)
 
+app.removeMenuItem("Build Point Cloud")
+app.addMenuItem("Build Point Cloud", build_cloud)
