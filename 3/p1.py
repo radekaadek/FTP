@@ -22,7 +22,7 @@ import os
 
 app: Metashape.Application = Metashape.Application()
 doc: Metashape.Document = app.document
-chunk = doc.chunk
+
 
 def get_path(path):
     if os.path.exists(path):
@@ -33,7 +33,12 @@ def get_path(path):
 def find_files(folder, types):
     return [entry.path for entry in os.scandir(folder) if (entry.is_file() and os.path.splitext(entry.name)[1].lower() in types)]
 
+
+
 def get_photos():
+    chunk = doc.chunk
+    if not chunk:
+        chunk = doc.addChunk()
     photo_folder = app.getExistingDirectory("Please select the folder of photos to load.")
     if not photo_folder:
         return
@@ -45,10 +50,49 @@ def get_photos():
         camera.reference.location = crs.project(chunk.crs.unproject(camera.reference.location))
     chunk.crs = crs
     chunk.updateTransform()
-    chunk.alignCameras()
-    chunk.matchPhotos()
+
+def align_photos():
+    chunk = doc.chunk
+    if not chunk:
+        app.messageBox("Error", "Please select a chunk with loaded photos first.")
+        return
+    accuracies = {0: "Highest", 1: "High", 2: "Medium", 4: "Low", 8: "Lowest"}
+    acc_str = ""
+    for key, value in accuracies.items():
+        acc_str += f"{key} - {value}\n"
+    downscale_string = f"Please enter the image alignment accuracy\n{acc_str}"
+
+    downscale_int = -1
+    while downscale_int not in accuracies:
+        downscale_int = app.getInt(downscale_string)
+        if downscale_int not in accuracies:
+            app.messageBox("Invalid input", "Please enter a valid integer.")
+
+    gen_presel_string = "Enable generic preselection"
+    gen_presel_bool = app.getBool(gen_presel_string)
+    ref_presel_string = "Enable reference preselection"
+    ref_presel_bool = app.getBool(ref_presel_string)
+    reset_align_string = "Reset current alignment"
+    reset_align_bool = app.getBool(reset_align_string)
+
+
+    chunk.matchPhotos(downscale=downscale_int, generic_preselection=gen_presel_bool, reference_preselection=ref_presel_bool, reset_align=reset_align_bool)
 
 def build_cloud():
+    accuracies = {1: "Ultra high", 2: "High", 4: "Medium", 8: "Low", 16: "Lowest"}
+    acc_str = ""
+    for key, value in accuracies.items():
+        acc_str += f"{key} - {value}\n"
+    downscale_string = f"Please enter the depth map build accuracy\n{acc_str}"
+
+    downscale_int = -1
+    while downscale_int not in accuracies:
+        downscale_int = app.getInt(downscale_string)
+        if downscale_int not in accuracies:
+            app.messageBox("Invalid input", f"Please enter a valid integer from:\n{acc_str}")
+    chunk = doc.chunk
+    chunk.buildDepthMaps(downscale=downscale_int)
+    chunk.alignCameras()
     chunk.buildPointCloud(point_colors=True)
 
 
@@ -56,8 +100,12 @@ def build_cloud():
 image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
 
 
-app.removeMenuItem("GetPhotosAlign")
-app.addMenuItem("GetPhotosAlign", get_photos)
+app.removeMenuItem("Get Photos")
+app.addMenuItem("Get Photos", get_photos)
 
-app.removeMenuItem("Build Point Cloud")
-app.addMenuItem("Build Point Cloud", build_cloud)
+app.removeMenuItem("Align Photos")
+app.addMenuItem("Align Photos", align_photos)
+
+app.removeMenuItem("Generate Depth Maps and Build Point Cloud")
+app.addMenuItem("Generate Depth Maps and Build Point Cloud", build_cloud)
+
