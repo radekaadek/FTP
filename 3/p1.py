@@ -54,7 +54,7 @@ def get_photos():
 def align_photos():
     chunk = doc.chunk
     if not chunk:
-        app.messageBox("Error", "Please select a chunk with loaded photos first.")
+        app.messageBox("Error, please select a chunk with loaded photos first.")
         return
     accuracies = {0: "Highest", 1: "High", 2: "Medium", 4: "Low", 8: "Lowest"}
     acc_str = ""
@@ -66,7 +66,7 @@ def align_photos():
     while downscale_int not in accuracies:
         downscale_int = app.getInt(downscale_string)
         if downscale_int not in accuracies:
-            app.messageBox("Invalid input", "Please enter a valid integer.")
+            app.messageBox("Invalid input, Please enter a valid integer.")
 
     gen_presel_string = "Enable generic preselection"
     gen_presel_bool = app.getBool(gen_presel_string)
@@ -76,7 +76,8 @@ def align_photos():
     reset_align_bool = app.getBool(reset_align_string)
 
 
-    chunk.matchPhotos(downscale=downscale_int, generic_preselection=gen_presel_bool, reference_preselection=ref_presel_bool, reset_align=reset_align_bool)
+    chunk.matchPhotos(downscale=downscale_int, generic_preselection=gen_presel_bool, reference_preselection=ref_presel_bool)
+    chunk.alignCameras(reset_alignment=reset_align_bool)
 
 def build_cloud():
     accuracies = {1: "Ultra high", 2: "High", 4: "Medium", 8: "Low", 16: "Lowest"}
@@ -89,10 +90,9 @@ def build_cloud():
     while downscale_int not in accuracies:
         downscale_int = app.getInt(downscale_string)
         if downscale_int not in accuracies:
-            app.messageBox("Invalid input", f"Please enter a valid integer from:\n{acc_str}")
+            app.messageBox(f"Invalid input, please enter a valid integer from:\n{acc_str}")
     chunk = doc.chunk
     chunk.buildDepthMaps(downscale=downscale_int)
-    chunk.alignCameras()
     chunk.buildPointCloud(point_colors=True)
 
 
