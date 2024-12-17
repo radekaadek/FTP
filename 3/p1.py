@@ -43,7 +43,8 @@ def get_photos():
     if not photo_folder:
         return
     crs = app.getCoordinateSystem()
-    # ask the user for CRS
+
+
     photos = find_files(photo_folder, image_types)
     chunk.addPhotos(photos)
     for camera in chunk.cameras:
@@ -91,26 +92,46 @@ def build_cloud():
         downscale_int = app.getInt(downscale_string)
         if downscale_int not in accuracies:
             app.messageBox(f"Invalid input, please enter a valid integer from:\n{acc_str}")
-            continue
-        break
+
+    save_cloud = app.getBool("Save the created point cloud?")
+
+
     chunk = doc.chunk
     chunk.buildDepthMaps(downscale=downscale_int)
     chunk.buildPointCloud(point_colors=True)
+    if save_cloud:
+        chunk.exportPointCloud(app.getSaveFileName('Export point cloud', filter="*.las"))
 
-# def build_model():
-#     chunk = doc.chunk
-#     face_counts = Metashape.FaceCount()
-#     # make the user choose the face count
-#     while True:
-#         cnt = app.getInt(f"Please enter the model's desired face count"
-#                          "\n0: low face count"
-#                          "\n1: medium face count"
-#                          "\n2: high face count")
-#         if cnt not in {0, 1, 2}:
-#             app.messageBox("Invalid input, please enter a valid integer from:\n0, 1, 2")
-#             continue
-#         face_counts.faceCount = cnt
-#         break
+def build_model():
+    face_counts = Metashape.FaceCount
+    num_to_face = {0: face_counts.LowFaceCount, 1: face_counts.MediumFaceCount, 2: face_counts.HighFaceCount, 3: face_counts.CustomFaceCount}
+    cnt = -1
+    while cnt not in num_to_face.keys():
+        cnt = app.getInt(f"Please enter the model's desired face count\n"
+                         "0: Low face count\n"
+                         "1: Medium face count\n"
+                         "2: High face count\n"
+                         "3: Custom face count")
+        if cnt not in num_to_face.keys():
+            app.messageBox(f"Invalid input, please enter a valid integer from:\n{num_to_face.keys()}")
+    face_cnt = num_to_face[cnt]
+
+    chunk = doc.chunk
+    save_model = app.getBool("Save the created model?")
+
+
+    chunk = doc.chunk
+    if face_cnt == face_counts.CustomFaceCount:
+        face_num = -1
+        while face_num < 1:
+            face_num = app.getInt("Please enter the desired number of faces")
+            if face_num < 1:
+                app.messageBox("Invalid input, please enter a positive integer")
+        face_cnt = face_counts.CustomFaceCount(face_count=face_cnt, face_size=face_num)
+    else:
+        chunk.buildModel(face_count=face_cnt)
+    if save_model:
+        chunk.exportModel(app.getSaveFileName('Export model', filter="*.obj"))
 
 
 image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
@@ -124,4 +145,7 @@ app.addMenuItem("Align Photos", align_photos)
 
 app.removeMenuItem("Generate Depth Maps and Build Point Cloud")
 app.addMenuItem("Generate Depth Maps and Build Point Cloud", build_cloud)
+
+app.removeMenuItem("Build Model")
+app.addMenuItem("Build Model", build_model)
 
