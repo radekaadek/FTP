@@ -91,10 +91,26 @@ def build_cloud():
         downscale_int = app.getInt(downscale_string)
         if downscale_int not in accuracies:
             app.messageBox(f"Invalid input, please enter a valid integer from:\n{acc_str}")
+            continue
+        break
     chunk = doc.chunk
     chunk.buildDepthMaps(downscale=downscale_int)
     chunk.buildPointCloud(point_colors=True)
 
+# def build_model():
+#     chunk = doc.chunk
+#     face_counts = Metashape.FaceCount()
+#     # make the user choose the face count
+#     while True:
+#         cnt = app.getInt(f"Please enter the model's desired face count"
+#                          "\n0: low face count"
+#                          "\n1: medium face count"
+#                          "\n2: high face count")
+#         if cnt not in {0, 1, 2}:
+#             app.messageBox("Invalid input, please enter a valid integer from:\n0, 1, 2")
+#             continue
+#         face_counts.faceCount = cnt
+#         break
 
 
 image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
