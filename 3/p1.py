@@ -46,15 +46,91 @@ def wizard():
     btn_get_photos.clicked.connect(get_photos)
     layout.addWidget(btn_get_photos)
 
-    # Button to align photos
-    btn_align_photos = QPushButton("Align Photos")
-    btn_align_photos.clicked.connect(align_photos)
-    layout.addWidget(btn_align_photos)
 
-    # Button to build point cloud
-    btn_build_cloud = QPushButton("Generate Depth Maps and Build Point Cloud")
-    btn_build_cloud.clicked.connect(build_cloud)
-    layout.addWidget(btn_build_cloud)
+    accuracies = {0: "Highest", 1: "High", 2: "Medium", 4: "Low", 8: "Lowest"}
+
+    # window = QWidget()
+    # layout = QVBoxLayout()
+
+    accuracy_label = QLabel("Image alignment accuracy:")
+    layout.addWidget(accuracy_label)
+
+    accuracy_combo = QComboBox()
+    for key, value in accuracies.items():
+        accuracy_combo.addItem(value, key)
+    layout.addWidget(accuracy_combo)
+
+    gen_presel_checkbox = QCheckBox("Enable generic preselection")
+    layout.addWidget(gen_presel_checkbox)
+
+    ref_presel_checkbox = QCheckBox("Enable reference preselection")
+    layout.addWidget(ref_presel_checkbox)
+
+    reset_align_checkbox = QCheckBox("Reset current alignment")
+    layout.addWidget(reset_align_checkbox)
+
+    def confirm_alignment():
+        chunk = doc.chunk
+        if not chunk:
+            app.messageBox("Error, please select a chunk with loaded photos first.")
+            return
+        downscale_int = accuracy_combo.currentData()
+        gen_presel_bool = gen_presel_checkbox.isChecked()
+        ref_presel_bool = ref_presel_checkbox.isChecked()
+        reset_align_bool = reset_align_checkbox.isChecked()
+        print(f"{downscale_int=} {gen_presel_bool=} {ref_presel_bool=} {reset_align_bool=}")
+        print(f"{type(downscale_int)=} {type(gen_presel_bool)=} {type(ref_presel_bool)=} {type(reset_align_bool)=}")
+
+        chunk.matchPhotos(downscale=downscale_int, generic_preselection=gen_presel_bool, reference_preselection=ref_presel_bool)
+        chunk.alignCameras(reset_alignment=reset_align_bool)
+        # window.close()
+
+    confirm_button = QPushButton("Align Photos")
+    confirm_button.clicked.connect(confirm_alignment)
+    layout.addWidget(confirm_button)
+
+    depth_accuracy_label = QLabel("Depth map build accuracy:")
+    layout.addWidget(depth_accuracy_label)
+
+    accuracies_cloud = {1: "Ultra high", 2: "High", 4: "Medium", 8: "Low", 16: "Lowest"}
+    depth_accuracy_combo = QComboBox()
+    for key, value in accuracies_cloud.items():
+        depth_accuracy_combo.addItem(value, key)
+    layout.addWidget(depth_accuracy_combo)
+
+    save_cloud_checkbox = QCheckBox("Save the created point cloud")
+    layout.addWidget(save_cloud_checkbox)
+
+    def build_depth_maps():
+        chunk = doc.chunk
+        if not chunk:
+            app.messageBox("Error, please select a chunk with aligned photos first.")
+            return
+        downscale_int = depth_accuracy_combo.currentData()
+        chunk.buildDepthMaps(downscale=downscale_int)
+
+    def build_point_cloud():
+        chunk = doc.chunk
+        if not chunk:
+            app.messageBox("Error, please select a chunk with depth maps first.")
+            return
+        save_cloud = save_cloud_checkbox.isChecked()
+        name = None
+        if save_cloud:
+            name = app.getSaveFileName('Export point cloud path', filter="*.las")
+        chunk.buildPointCloud(point_colors=True)
+        if save_cloud and name is not None:
+            chunk.exportPointCloud(name)
+
+
+    btn_depth_maps = QPushButton("Generate Depth Maps")
+    btn_depth_maps.clicked.connect(build_depth_maps)
+    layout.addWidget(btn_depth_maps)
+
+    btn_build_point_cloud = QPushButton("Build Point Cloud")
+    btn_build_point_cloud.clicked.connect(build_point_cloud)
+    layout.addWidget(btn_build_point_cloud)
+
 
     # Button to build model
     btn_build_model = QPushButton("Build Model")
@@ -67,7 +143,6 @@ def wizard():
 
 
 def get_photos():
-
     chunk = doc.chunk
     if not chunk:
         chunk = doc.addChunk()
@@ -84,57 +159,8 @@ def get_photos():
     chunk.crs = crs
     chunk.updateTransform()
 
-def align_photos():
-    chunk = doc.chunk
-    if not chunk:
-        app.messageBox("Error, please select a chunk with loaded photos first.")
-        return
-    accuracies = {0: "Highest", 1: "High", 2: "Medium", 4: "Low", 8: "Lowest"}
-    acc_str = ""
-    for key, value in accuracies.items():
-        acc_str += f"{key} - {value}\n"
-    downscale_string = f"Please enter the image alignment accuracy\n{acc_str}"
-
-    downscale_int = -1
-    while downscale_int not in accuracies:
-        downscale_int = app.getInt(downscale_string)
-        if downscale_int not in accuracies:
-            app.messageBox("Invalid input, Please enter a valid integer.")
-
-    gen_presel_string = "Enable generic preselection"
-    gen_presel_bool = app.getBool(gen_presel_string)
-    ref_presel_string = "Enable reference preselection"
-    ref_presel_bool = app.getBool(ref_presel_string)
-    reset_align_string = "Reset current alignment"
-    reset_align_bool = app.getBool(reset_align_string)
-
-
-    chunk.matchPhotos(downscale=downscale_int, generic_preselection=gen_presel_bool, reference_preselection=ref_presel_bool)
-    chunk.alignCameras(reset_alignment=reset_align_bool)
-
 def build_cloud():
-    accuracies = {1: "Ultra high", 2: "High", 4: "Medium", 8: "Low", 16: "Lowest"}
-    acc_str = ""
-    for key, value in accuracies.items():
-        acc_str += f"{key} - {value}\n"
-    downscale_string = f"Please enter the depth map build accuracy\n{acc_str}"
-
-    downscale_int = -1
-    while downscale_int not in accuracies:
-        downscale_int = app.getInt(downscale_string)
-        if downscale_int is None:
-            return
-        if downscale_int not in accuracies:
-            app.messageBox(f"Invalid input, please enter a valid integer from:\n{acc_str}")
-
-    save_cloud = app.getBool("Save the created point cloud?")
-
-
-    chunk = doc.chunk
-    chunk.buildDepthMaps(downscale=downscale_int)
-    chunk.buildPointCloud(point_colors=True)
-    if save_cloud:
-        chunk.exportPointCloud(app.getSaveFileName('Export point cloud', filter="*.las"))
+    pass
 
 def build_model():
     # get depth map
@@ -179,9 +205,6 @@ image_types = [".jpg", ".jpeg", ".tif", ".tiff"]
 
 app.removeMenuItem("Get Photos")
 app.addMenuItem("Get Photos", get_photos)
-
-app.removeMenuItem("Align Photos")
-app.addMenuItem("Align Photos", align_photos)
 
 app.removeMenuItem("Generate Depth Maps and Build Point Cloud")
 app.addMenuItem("Generate Depth Maps and Build Point Cloud", build_cloud)
