@@ -133,11 +133,14 @@ def wizard():
 
     accuracy_label = QLabel("Image alignment accuracy:")
     layout.addWidget(accuracy_label)
+    # set medium accuracy as default
 
     accuracy_combo = QComboBox()
     for key, value in accuracies.items():
         accuracy_combo.addItem(value, key)
+    accuracy_combo.setCurrentIndex(2)
     layout.addWidget(accuracy_combo)
+
 
     gen_presel_checkbox = QCheckBox("Enable generic preselection")
     layout.addWidget(gen_presel_checkbox)
@@ -177,6 +180,7 @@ def wizard():
     depth_accuracy_combo = QComboBox()
     for key, value in accuracies_cloud.items():
         depth_accuracy_combo.addItem(value, key)
+    depth_accuracy_combo.setCurrentIndex(2)
     layout.addWidget(depth_accuracy_combo)
 
     save_cloud_checkbox = QCheckBox("Save the created point cloud")
@@ -228,6 +232,7 @@ def wizard():
     face_count_combo = QComboBox()
     for key, value in face_counts.items():
         face_count_combo.addItem(value, key)
+    face_count_combo.setCurrentIndex(1)
     layout.addWidget(face_count_combo)
 
     save_model = QCheckBox("Save generated model")
@@ -271,6 +276,17 @@ def wizard():
     btn_export_markers = QPushButton("Export Markers")
     btn_export_markers.clicked.connect(export_markers)
     layout.addWidget(btn_export_markers)
+
+    def run_all():
+        get_photos()
+        confirm_alignment()
+        build_depth_maps()
+        build_point_cloud()
+        build_model()
+
+    run_all_button = QPushButton("Run all")
+    run_all_button.clicked.connect(run_all)
+    layout.addWidget(run_all_button)
 
     window.setLayout(layout)
     window.show()
