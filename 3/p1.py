@@ -19,6 +19,7 @@
 
 import Metashape
 import os
+from PyQt6.QtWidgets import *
 
 app: Metashape.Application = Metashape.Application()
 doc: Metashape.Document = app.document
@@ -33,9 +34,40 @@ def get_path(path):
 def find_files(folder, types):
     return [entry.path for entry in os.scandir(folder) if (entry.is_file() and os.path.splitext(entry.name)[1].lower() in types)]
 
+def wizard():
+    qt_app = QApplication.instance()  # Get the existing QApplication instance if it exists
+    if not qt_app:  # If no instance exists, create a new one
+        qt_app = QApplication([])
+    window = QWidget()
+    layout = QVBoxLayout()
+
+    # Button to get photos
+    btn_get_photos = QPushButton("Get Photos")
+    btn_get_photos.clicked.connect(get_photos)
+    layout.addWidget(btn_get_photos)
+
+    # Button to align photos
+    btn_align_photos = QPushButton("Align Photos")
+    btn_align_photos.clicked.connect(align_photos)
+    layout.addWidget(btn_align_photos)
+
+    # Button to build point cloud
+    btn_build_cloud = QPushButton("Generate Depth Maps and Build Point Cloud")
+    btn_build_cloud.clicked.connect(build_cloud)
+    layout.addWidget(btn_build_cloud)
+
+    # Button to build model
+    btn_build_model = QPushButton("Build Model")
+    btn_build_model.clicked.connect(build_model)
+    layout.addWidget(btn_build_model)
+
+    window.setLayout(layout)
+    window.show()
+    qt_app.exec()
 
 
 def get_photos():
+
     chunk = doc.chunk
     if not chunk:
         chunk = doc.addChunk()
@@ -90,6 +122,8 @@ def build_cloud():
     downscale_int = -1
     while downscale_int not in accuracies:
         downscale_int = app.getInt(downscale_string)
+        if downscale_int is None:
+            return
         if downscale_int not in accuracies:
             app.messageBox(f"Invalid input, please enter a valid integer from:\n{acc_str}")
 
@@ -103,6 +137,8 @@ def build_cloud():
         chunk.exportPointCloud(app.getSaveFileName('Export point cloud', filter="*.las"))
 
 def build_model():
+    # get depth map
+
     face_counts = Metashape.FaceCount
     num_to_face = {0: face_counts.LowFaceCount, 1: face_counts.MediumFaceCount, 2: face_counts.HighFaceCount, 3: face_counts.CustomFaceCount}
     cnt = -1
@@ -112,6 +148,8 @@ def build_model():
                          "1: Medium face count\n"
                          "2: High face count\n"
                          "3: Custom face count")
+        if cnt is None:
+            return
         if cnt not in num_to_face.keys():
             app.messageBox(f"Invalid input, please enter a valid integer from:\n{num_to_face.keys()}")
     face_cnt = num_to_face[cnt]
@@ -125,6 +163,8 @@ def build_model():
         face_num = -1
         while face_num < 1:
             face_num = app.getInt("Please enter the desired number of faces")
+            if face_num is None:
+                return
             if face_num < 1:
                 app.messageBox("Invalid input, please enter a positive integer")
         face_cnt = face_counts.CustomFaceCount(face_count=face_cnt, face_size=face_num)
@@ -148,4 +188,7 @@ app.addMenuItem("Generate Depth Maps and Build Point Cloud", build_cloud)
 
 app.removeMenuItem("Build Model")
 app.addMenuItem("Build Model", build_model)
+
+app.removeMenuItem("Wizard")
+app.addMenuItem("Wizard", wizard)
 
