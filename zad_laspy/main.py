@@ -45,7 +45,7 @@ las.green = rescaled_intensity
 las.blue = rescaled_intensity
 
 # save to file
-las.write("las.laz")
+# las.write("las.laz")
 
 def point_extraction_based_on_the_class(las, class_type):
     if class_type == 'buildings':
@@ -103,8 +103,9 @@ print(len(buildings), len(vegetation), len(ground))
 lens = np.array([len(buildings), len(vegetation), len(ground)])
 plt.bar(np.arange(3), lens)
 # add labels
+plt.title('Liczba punktów w każdej klasie')
 plt.xticks([0, 1, 2], ['budynki', 'roślinność', 'grunt'])
-plt.show()
+# plt.show()
 
 # color chmura by classification
 red = np.array([255, 0, 0])
@@ -115,4 +116,11 @@ colors[las.classification == 6] = red
 colors[np.logical_or.reduce((las.classification == 3, las.classification == 4, las.classification == 5))] = green
 colors[las.classification == 2] = blue
 chmura_punktow.colors = o3d.utility.Vector3dVector(colors)
-o3d.visualization.draw_geometries_with_editing([chmura_punktow],window_name='Przycianie chmury punktow')
+# o3d.visualization.draw_geometries_with_editing([chmura_punktow],window_name='Kolorowanie po klasie')
+
+# count density with knn
+knn = o3d.geometry.KDTreeFlann(chmura_punktow)
+pts = np.array(chmura_punktow.points)
+[k, idx, _] = knn.search_knn_vector_3d(pts[100], 5)
+print(f"k: {k}, idx: {np.array(idx)}")
+
