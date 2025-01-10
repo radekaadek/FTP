@@ -1,8 +1,11 @@
+import subprocess
 import click
 import laspy
+import json
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
+import rasterio
 
 def visualize_3d(points, colors, title="3D Visualization"):
     pcd = o3d.geometry.PointCloud()
@@ -85,7 +88,9 @@ def density(input_file, three_d, ground_only):
 
 
     plt.bar(neighbours_density_list, counts)
-    plt.title("Point Count by Neighbours")
+    name = "Ground " if ground_only else ""
+    name += "Point Count by Neighbours (3D)" if three_d else "Point Count by Neighbours (2D)"
+    plt.title(name)
     plt.xlabel("Neighbours")
     plt.ylabel("Count")
     plt.show()
@@ -98,50 +103,74 @@ def density(input_file, three_d, ground_only):
 @click.argument('output_file', type=click.Path())
 def difference(input_file1, input_file2, output_file):
     """Generate a difference raster from two LAS/LAZ files."""
-    def generate_raster(las, classification, resolution=1):
-        mask = las.classification == classification
-        x, y, z = las.x[mask], las.y[mask], las.z[mask]
+    config = {
+      "pipeline": [
+        {
+          "type": "readers.las",
+          "filename": input_file1
+        },
+        {
+          "type": "writers.gdal",
+          "filename": "output.tif",
+          "resolution": 1,
+          "data_type": "float",
+          "gdaldriver": "GTiff",
+          "output_type": "mean"
+        }
+      ]
+    }
 
-        xmin, ymin = np.floor([np.min(x), np.min(y)])
-        xmax, ymax = np.ceil([np.max(x), np.max(y)])
+    pipeline_str = json.dumps(config)
+    # save to file
+    pipeline_file = "config.json"
+    with open(pipeline_file, "w") as f:
+        f.write(pipeline_str)
 
-        xbins = np.arange(xmin, xmax + resolution, resolution)
-        ybins = np.arange(ymin, ymax + resolution, resolution)
+    # Execute the PDAL pipeline
+    command = f"pdal pipeline {pipeline_file}"
+    subprocess.run(command, shell=True, check=True)
 
-        grid, _, _ = np.histogram2d(x, y, bins=[xbins, ybins], weights=z)
-        counts, _, _ = np.histogram2d(x, y, bins=[xbins, ybins])
-        return grid / np.maximum(counts, 1)
+    config2 = {
+      "pipeline": [
+        {
+          "type": "readers.las",
+          "filename": input_file2
+        },
+        {
+          "type": "writers.gdal",
+          "filename": "output2.tif",
+          "resolution": 1,
+          "data_type": "float",
+          "gdaldriver": "GTiff",
+          "output_type": "mean"
+        }
+      ]
+    }
 
-    las1 = laspy.read(input_file1)
-    las2 = laspy.read(input_file2)
+    pipeline_str2 = json.dumps(config2)
+    # save to file
+    pipeline_file2 = "config2.json"
+    with open(pipeline_file2, "w") as f:
+        f.write(pipeline_str2)
+    # Execute the PDAL pipeline
+    command2 = f"pdal pipeline {pipeline_file2}"
+    subprocess.run(command2, shell=True, check=True)
 
-    nmt1 = generate_raster(las1, 2)
-    nmt2 = generate_raster(las2, 2)
+    # read with rasterio
+    with rasterio.open("output.tif") as src:
+        data = src.read()
+        profile = src.profile
 
-    difference_raster = nmt2 - nmt1
+    with rasterio.open("output2.tif") as src:
+        data2 = src.read()
 
-    import rasterio
-    from rasterio.transform import from_origin
+    # calculate difference
+    diff = data - data2
 
-    rows, cols = difference_raster.shape
-    transform = from_origin(np.min(las1.x), np.max(las1.y), 1, 1)
+    # save to file
+    with rasterio.open(output_file, "w", **profile) as dst:
+        dst.write(diff)
 
-    with rasterio.open(
-        output_file,
-        'w',
-        driver='GTiff',
-        height=rows,
-        width=cols,
-        count=1,
-        dtype=difference_raster.dtype,
-        crs='+proj=latlong',
-        transform=transform,
-    ) as dst:
-        dst.write(difference_raster, 1)
-
-    click.echo(f"Difference raster saved to {output_file}")
-
-    click.echo(f"Difference raster saved to {output_file}")
 
 if __name__ == "__main__":
     cli()
