@@ -1,4 +1,5 @@
 import subprocess
+from tempfile import TemporaryFile
 import click
 import laspy
 import json
@@ -62,21 +63,20 @@ def density(input_file, three_d, ground_only):
     else:
         area = np.ptp(points[:, 0]) * np.ptp(points[:, 1])
         density = len(points) / area
-        # remove third dimension from points
-        points = points[:, :2]
 
     chmura_punktow = o3d.geometry.PointCloud()
-    if three_d:
-        chmura_punktow.points = o3d.utility.Vector3dVector(points)
-    else:
-        chmura_punktow.points = o3d.utility.Vector2dVector(points)
+
+    if not three_d:
+        # set zs to 0
+        points[:, 2] = 0
+
+    chmura_punktow.points = o3d.utility.Vector3dVector(points)
 
     click.echo(f"Density: {density:.2f} points per {'m^3' if three_d else 'm^2'}")
     neighbours_density: dict[int, int] = {}
     knn = o3d.geometry.KDTreeFlann(chmura_punktow)
     for point in points:
         [k, idx, _] = knn.search_radius_vector_3d(point, 1)
-        print(f"len(idx): {len(idx)}")
         if k not in neighbours_density:
             neighbours_density[k] = 0
         neighbours_density[k] += len(idx)
@@ -103,11 +103,26 @@ def density(input_file, three_d, ground_only):
 @click.argument('output_file', type=click.Path())
 def difference(input_file1, input_file2, output_file):
     """Generate a difference raster from two LAS/LAZ files."""
+    las = laspy.read(input_file1)
+    # select only the ground points and write to a new file
+    new_file = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
+    new_file.points = las.points[las.classification == 2]
+    ground_name = "ground_nmt.las"
+    new_file.write(ground_name)
+
+    las = laspy.read(input_file2)
+    # # where class is 2 or 3 or 4 or 5 or 6
+    new_file = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
+
+    new_file.points = las.points[np.logical_or.reduce((las.classification == 2, las.classification == 3, las.classification == 4, las.classification == 5, las.classification == 6))]
+    building_name = "building_nmpt.las"
+    las.write(building_name)
+
     config = {
       "pipeline": [
         {
           "type": "readers.las",
-          "filename": input_file1
+          "filename": ground_name
         },
         {
           "type": "writers.gdal",
@@ -115,7 +130,8 @@ def difference(input_file1, input_file2, output_file):
           "resolution": 1,
           "data_type": "float",
           "gdaldriver": "GTiff",
-          "output_type": "mean"
+          "output_type": "mean",
+          "spatialreference": "EPSG:2180"
         }
       ]
     }
@@ -134,7 +150,7 @@ def difference(input_file1, input_file2, output_file):
       "pipeline": [
         {
           "type": "readers.las",
-          "filename": input_file2
+          "filename": building_name
         },
         {
           "type": "writers.gdal",
@@ -142,7 +158,8 @@ def difference(input_file1, input_file2, output_file):
           "resolution": 1,
           "data_type": "float",
           "gdaldriver": "GTiff",
-          "output_type": "mean"
+          "output_type": "mean",
+          "spatialreference": "EPSG:2180"
         }
       ]
     }
@@ -159,12 +176,17 @@ def difference(input_file1, input_file2, output_file):
     # read with rasterio
     with rasterio.open("output.tif") as src:
         data = src.read()
-        profile = src.profile
 
     with rasterio.open("output2.tif") as src:
+        profile = src.profile
         data2 = src.read()
 
-    # calculate difference
+    # calculate difference with reduced dimensions
+    dims1 = data.shape
+    dims2 = data2.shape
+    min_dims = tuple(min(d1, d2) for d1, d2 in zip(dims1, dims2))
+    data = data[:, :min_dims[1], :min_dims[2]]
+    data2 = data2[:, :min_dims[1], :min_dims[2]]
     diff = data - data2
 
     # save to file
