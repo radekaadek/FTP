@@ -7,6 +7,7 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import rasterio
 import os
+from sklearn.cluster import DBSCAN
 
 def visualize_3d(points, colors, title="3D Visualization"):
     pcd = o3d.geometry.PointCloud()
@@ -199,6 +200,38 @@ def difference(input_file1, input_file2, output_file):
     os.remove(pipeline_file2)
     os.remove("output2.tif")
 
+@cli.command()
+@click.argument('input_file', type=click.Path(exists=True))
+def analyze_buildings(input_file):
+    """Cluster and visualize buildings in a LAS/LAZ file."""
+    las = laspy.read(input_file)
+    points = np.vstack((las.x, las.y, las.z)).T
+
+    # Separate buildings and ground
+    building_mask = las.classification == 6
+    ground_mask = las.classification == 2
+
+    buildings = points[building_mask]
+    ground = points[ground_mask]
+
+    # Perform clustering on buildings
+    clustering = DBSCAN(eps=2, min_samples=10).fit(buildings)
+    labels = clustering.labels_
+
+    unique_labels = set(labels)
+    colors = np.zeros((len(buildings), 3))
+    for label in unique_labels:
+        if label == -1:
+            continue
+        color = np.random.rand(3)
+        colors[labels == label] = color
+
+    ground_colors = np.full((len(ground), 3), [0.5, 0.5, 0.5])  # Gray for ground
+
+    all_points = np.vstack((ground, buildings))
+    all_colors = np.vstack((ground_colors, colors))
+
+    visualize_3d(all_points, all_colors, "Buildings and Ground")
 
 if __name__ == "__main__":
     cli()
