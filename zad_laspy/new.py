@@ -31,18 +31,16 @@ def analyze(input_file):
     plt.xlabel("Class")
     plt.ylabel("Count")
     # set ticks to be integers
-    plt.gca().set_yticks(np.arange(0, max(counts) + 1, 1))
-    plt.gca().set_xticks(np.arange(0, len(unique_classes), 1))
     plt.show()
 
     points = np.vstack((las.x, las.y, las.z)).T
     colors = np.zeros_like(points)
     
-    for cls, color in zip([6, 2, 3], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]):
+    for cls, color in zip([6, 2], [[1, 0, 0], [0, 1, 0]]):
         mask = classifications == cls
         colors[mask] = color
-
-    visualize_3d(points, colors, title="3D Visualization by Class")
+    mask = np.logical_or.reduce((classifications == 3, classifications == 4, classifications == 5))
+    colors[mask] = [0, 0, 1]
 
 @cli.command()
 @click.argument('input_file', type=click.Path(exists=True))
@@ -77,10 +75,12 @@ def density(input_file, three_d, ground_only):
     knn = o3d.geometry.KDTreeFlann(chmura_punktow)
     for point in points:
         [k, idx, _] = knn.search_radius_vector_3d(point, 1)
+        k -= 1
         if k not in neighbours_density:
             neighbours_density[k] = 0
-        neighbours_density[k] += len(idx)
+        neighbours_density[k] += 1
 
+    print(neighbours_density[0])
     # create 2 lists out of the dict
     pair = list(neighbours_density.items())
     counts = [v for k, v in pair]
