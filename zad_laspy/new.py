@@ -1,5 +1,4 @@
 import subprocess
-from tempfile import TemporaryFile
 import click
 import laspy
 import json
@@ -7,6 +6,7 @@ import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 import rasterio
+import os
 
 def visualize_3d(points, colors, title="3D Visualization"):
     pcd = o3d.geometry.PointCloud()
@@ -80,7 +80,6 @@ def density(input_file, three_d, ground_only):
             neighbours_density[k] = 0
         neighbours_density[k] += 1
 
-    print(neighbours_density[0])
     # create 2 lists out of the dict
     pair = list(neighbours_density.items())
     counts = [v for k, v in pair]
@@ -192,6 +191,13 @@ def difference(input_file1, input_file2, output_file):
     # save to file
     with rasterio.open(output_file, "w", **profile) as dst:
         dst.write(diff)
+
+    # remove temporary files
+    os.remove(ground_name)
+    os.remove(building_name)
+    os.remove(pipeline_file)
+    os.remove(pipeline_file2)
+    os.remove("output2.tif")
 
 
 if __name__ == "__main__":
