@@ -146,6 +146,9 @@ def difference(input_file1, input_file2, output_file):
     command = f"pdal pipeline {pipeline_file}"
     subprocess.run(command, shell=True, check=True)
 
+    with rasterio.open("output.tif") as src:
+        bnds = src.bounds
+
     config2 = {
       "pipeline": [
         {
@@ -154,6 +157,7 @@ def difference(input_file1, input_file2, output_file):
         },
         {
           "type": "writers.gdal",
+          "bounds": f"([{bnds.left},{bnds.right}], [{bnds.bottom},{bnds.top}])",
           "filename": "output2.tif",
           "resolution": 1,
           "data_type": "float",
