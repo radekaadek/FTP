@@ -206,8 +206,9 @@ def difference(input_file1, input_file2, output_file):
 
 @cli.command()
 @click.argument('input_file', type=click.Path(exists=True))
-def analyze_buildings(input_file):
-    """Cluster and visualize buildings in a LAS/LAZ file."""
+@click.option('--output-file', type=click.Path(), default=None, help="Path to save building outlines as GeoJSON.")
+def analyze_buildings(input_file, output_file):
+    """Cluster, visualize, and optionally export building outlines from a LAS/LAZ file."""
     las = laspy.read(input_file)
     points = np.vstack((las.x, las.y, las.z)).T
 
@@ -236,6 +237,59 @@ def analyze_buildings(input_file):
     all_colors = np.vstack((ground_colors, colors))
 
     visualize_3d(all_points, all_colors, "Buildings and Ground")
+
+    meshes = []
+
+    if output_file:
+        # Generate and save building outlines
+        features = []
+        for label in unique_labels:
+            if label == -1:
+                continue  # Ignore noise points
+            cluster_points = buildings[labels == label]
+
+            # Skip clusters with fewer than 10 points
+            if len(cluster_points) < 10:
+                continue
+
+            # Calculate convex hull for the cluster
+            hull = o3d.geometry.PointCloud()
+            hull.points = o3d.utility.Vector3dVector(cluster_points)
+            # hull.estimate_normals()
+            # radii = [0.05, 0.1, 0.2, 0.5]
+            aabb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(hull.points)
+            volume = aabb.volume()
+            top = aabb.get_max_bound()
+            bottom = aabb.get_min_bound()
+            polygon2d = [(bottom[0], bottom[1]), (top[0], bottom[1]), (top[0], top[1]), (bottom[0], top[1])]
+
+            # Calculate area and volume
+
+            # Create a GeoJSON-like feature
+            polygon = [polygon2d]
+            feature = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": polygon
+                },
+                "properties": {
+                    # "area": area,
+                    "volume": volume
+                }
+            }
+            features.append(feature)
+
+        # Save to GeoJSON
+        geojson = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+
+        with open(output_file, 'w') as f:
+            json.dump(geojson, f)
+
+        click.echo(f"Building outlines exported to {output_file}")
 
 if __name__ == "__main__":
     cli()
