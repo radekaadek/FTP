@@ -211,7 +211,7 @@ def difference(input_file1, input_file2, output_file):
 @click.option('--output-file', type=click.Path(), default=None, help="Path to save building outlines as GeoJSON.")
 def analyze_buildings(input_file, output_file):
     """Cluster, visualize, and optionally export building outlines from a LAS/LAZ file."""
-    crs = "EPSG:2180"
+    epsg_crs = 2180
     las = laspy.read(input_file)
     points = np.vstack((las.x, las.y, las.z)).T
 
@@ -241,12 +241,9 @@ def analyze_buildings(input_file, output_file):
 
     visualize_3d(all_points, all_colors, "Buildings and Ground")
 
-    meshes = []
-
     if output_file:
         # Generate and save building outlines
         feature_frame = gpd.GeoDataFrame(geometry=gpd.GeoSeries())
-        feature_frame.set_crs(crs, inplace=True)
         feature_frame["label"] = []
         feature_frame["area"] = []
         feature_frame["volume"] = []
@@ -278,6 +275,7 @@ def analyze_buildings(input_file, output_file):
             # add row to feature_frame dataframe with geometry, label, area, and volume
             feature_frame.loc[len(feature_frame)] = [shapely_polygon, label, area, volume]
 
+        feature_frame = feature_frame.set_crs(epsg_crs, allow_override=True)
         feature_frame.to_file(output_file)
 
         click.echo(f"Building outlines exported to {output_file}")
