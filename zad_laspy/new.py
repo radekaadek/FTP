@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import rasterio
 import os
 from sklearn.cluster import DBSCAN
+from shapely.geometry import Polygon
 
 def visualize_3d(points, colors, title="3D Visualization"):
     pcd = o3d.geometry.PointCloud()
@@ -262,6 +263,8 @@ def analyze_buildings(input_file, output_file):
             top = aabb.get_max_bound()
             bottom = aabb.get_min_bound()
             polygon2d = [(bottom[0], bottom[1]), (top[0], bottom[1]), (top[0], top[1]), (bottom[0], top[1])]
+            shapely_polygon = Polygon(polygon2d)
+            area = shapely_polygon.area
 
             # Calculate area and volume
 
@@ -274,7 +277,7 @@ def analyze_buildings(input_file, output_file):
                     "coordinates": polygon
                 },
                 "properties": {
-                    # "area": area,
+                    "area": area,
                     "volume": volume
                 }
             }
