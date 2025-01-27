@@ -7,6 +7,7 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import rasterio
 import os
+import geopandas as gpd
 from sklearn.cluster import DBSCAN
 from shapely.geometry import Polygon
 
@@ -210,6 +211,7 @@ def difference(input_file1, input_file2, output_file):
 @click.option('--output-file', type=click.Path(), default=None, help="Path to save building outlines as GeoJSON.")
 def analyze_buildings(input_file, output_file):
     """Cluster, visualize, and optionally export building outlines from a LAS/LAZ file."""
+    crs = "EPSG:2180"
     las = laspy.read(input_file)
     points = np.vstack((las.x, las.y, las.z)).T
 
@@ -243,7 +245,15 @@ def analyze_buildings(input_file, output_file):
 
     if output_file:
         # Generate and save building outlines
-        features = []
+        feature_frame = gpd.GeoDataFrame(geometry=gpd.GeoSeries())
+        feature_frame.set_crs(crs, inplace=True)
+        feature_frame["label"] = []
+        feature_frame["area"] = []
+        feature_frame["volume"] = []
+
+        # set types
+        feature_frame["label"] = feature_frame["label"].astype(str)
+
         for label in unique_labels:
             if label == -1:
                 continue  # Ignore noise points
@@ -256,7 +266,6 @@ def analyze_buildings(input_file, output_file):
             # Calculate convex hull for the cluster
             hull = o3d.geometry.PointCloud()
             hull.points = o3d.utility.Vector3dVector(cluster_points)
-            # hull.estimate_normals()
             # radii = [0.05, 0.1, 0.2, 0.5]
             aabb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(hull.points)
             volume = aabb.volume()
@@ -266,31 +275,10 @@ def analyze_buildings(input_file, output_file):
             shapely_polygon = Polygon(polygon2d)
             area = shapely_polygon.area
 
-            # Calculate area and volume
+            # add row to feature_frame dataframe with geometry, label, area, and volume
+            feature_frame.loc[len(feature_frame)] = [shapely_polygon, label, area, volume]
 
-            # Create a GeoJSON-like feature
-            polygon = [polygon2d]
-            feature = {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": polygon
-                },
-                "properties": {
-                    "area": area,
-                    "volume": volume
-                }
-            }
-            features.append(feature)
-
-        # Save to GeoJSON
-        geojson = {
-            "type": "FeatureCollection",
-            "features": features
-        }
-
-        with open(output_file, 'w') as f:
-            json.dump(geojson, f)
+        feature_frame.to_file(output_file)
 
         click.echo(f"Building outlines exported to {output_file}")
 
