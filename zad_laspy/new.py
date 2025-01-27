@@ -45,6 +45,8 @@ def analyze(input_file):
     mask = np.logical_or.reduce((classifications == 3, classifications == 4, classifications == 5))
     colors[mask] = [0, 0, 1]
 
+    visualize_3d(points, colors)
+
 @cli.command()
 @click.argument('input_file', type=click.Path(exists=True))
 @click.option('--3d', 'three_d', is_flag=True, default=False, help="Calculate 3D density.")
