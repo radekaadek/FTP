@@ -109,7 +109,7 @@ def difference(input_file1, input_file2, output_file):
     """Generate a difference raster from two LAS/LAZ files."""
     las = laspy.read(input_file1)
     # select only the ground points and write to a new file
-    new_file = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
+    new_file = laspy.read(input_file1)
     new_file.points = las.points[las.classification == 2]
     ground_name = "ground_nmt.las"
     new_file.write(ground_name)
@@ -119,8 +119,8 @@ def difference(input_file1, input_file2, output_file):
     new_file = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
 
     new_file.points = las.points[np.logical_or.reduce((las.classification == 2, las.classification == 3, las.classification == 4, las.classification == 5, las.classification == 6))]
-    building_name = "building_nmpt.las"
-    las.write(building_name)
+    building_vege_ground_name = "bvg_nmpt.las"
+    las.write(building_vege_ground_name)
 
     config = {
       "pipeline": [
@@ -157,7 +157,7 @@ def difference(input_file1, input_file2, output_file):
       "pipeline": [
         {
           "type": "readers.las",
-          "filename": building_name
+          "filename": building_vege_ground_name
         },
         {
           "type": "writers.gdal",
@@ -183,10 +183,10 @@ def difference(input_file1, input_file2, output_file):
 
     # read with rasterio
     with rasterio.open("output.tif") as src:
+        profile = src.profile
         data = src.read()
 
     with rasterio.open("output2.tif") as src:
-        profile = src.profile
         data2 = src.read()
 
     # calculate difference with reduced dimensions
@@ -203,7 +203,7 @@ def difference(input_file1, input_file2, output_file):
 
     # remove temporary files
     os.remove(ground_name)
-    os.remove(building_name)
+    os.remove(building_vege_ground_name)
     os.remove(pipeline_file)
     os.remove(pipeline_file2)
     os.remove("output2.tif")
